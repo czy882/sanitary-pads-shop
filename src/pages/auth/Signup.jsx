@@ -2,20 +2,53 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
 import { supabase } from '../../supabaseClient';
-// 移除 Phone 引入
-import { Mail } from 'lucide-react'; 
+
+// --- 核心浮动标签输入组件 (Floating Label Input Component) ---
+// 该组件封装了输入框和浮动标签的逻辑
+const FloatingLabelInput = ({ id, label, type, value, onChange, required = false, className = '' }) => {
+  // 基础输入框样式
+  const inputBaseClass = "peer w-full h-12 px-5 pt-3 rounded-xl border border-[#e5d5d0] text-base text-[#1d1d1f] bg-[#fcf9f8] focus:bg-white focus:border-[#7c2b3d] focus:ring-1 focus:ring-[#7c2b3d] focus:outline-none transition-all";
+  
+  // 标签浮动样式:
+  const labelBaseClass = "absolute left-5 top-1/2 transform -translate-y-1/2 pointer-events-none transition-all duration-300 ease-out text-[#9a8a85] text-base font-light select-none";
+  
+  // 核心浮动效果：
+  // 1. peer-placeholder-shown:translate-y-0, peer-placeholder-shown:scale-100: 没输入时保持原位
+  // 2. peer-focus:-translate-y-[1.2rem], peer-focus:scale-75: 聚焦时上移并缩小
+  // 3. peer-not-placeholder-shown:... : 输入内容后也保持上移和缩小状态
+  const labelFloatClass = "peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-[1.2rem] peer-focus:scale-75 peer-focus:text-[#7c2b3d] peer-not-placeholder-shown:-translate-y-[1.2rem] peer-not-placeholder-shown:scale-75 peer-not-placeholder-shown:text-[#7c2b3d] text-xs uppercase tracking-widest";
+
+  // 注意：placeholder 必须是 " " (空格) 才能确保 :placeholder-shown 状态在初始加载时生效
+  return (
+    <div className={`relative ${className}`}>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${inputBaseClass} pt-3`} // 增加 padding-top 避免文字被遮挡
+        placeholder=" " 
+        required={required}
+      />
+      <label
+        htmlFor={id}
+        className={`${labelBaseClass} ${labelFloatClass}`}
+      >
+        {label}
+      </label>
+    </div>
+  );
+};
+// --- 核心浮动标签输入组件结束 ---
 
 const Signup = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  // 仅保留 email 状态
   const [email, setEmail] = useState(''); 
   const [password, setPassword] = useState('');
-  // 新增：确认密码状态
   const [confirmPassword, setConfirmPassword] = useState(''); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  // 移除 phone 和 mediaType 状态
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
@@ -23,21 +56,17 @@ const Signup = () => {
     setError(null);
     setLoading(true);
 
-    // --- 核心安全检查：确认密码是否匹配 ---
     if (password !== confirmPassword) {
       setError("Passwords do not match. Please try again.");
       setLoading(false);
       return;
     }
-    // --- 核心安全检查结束 ---
 
     try {
-      // 1. 调用 Supabase 注册接口
       const { data, error } = await supabase.auth.signUp({
         email: email,
         password: password,
         options: {
-          // 2. 将姓名作为 metadata 存储到 auth.users 表中
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -49,7 +78,6 @@ const Signup = () => {
       if (error) {
         setError(error.message);
       } else if (data.user) {
-        // 注册成功
         alert(`Welcome ${firstName}! Account created successfully.`);
         navigate('/'); 
       } else {
@@ -81,71 +109,55 @@ const Signup = () => {
         {/* Form */}
         <form onSubmit={handleSignup} className="space-y-5">
           
-          {/* 1. Name Fields */}
+          {/* 1. Name Fields (使用 Floating Label) */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#9a8a85] mb-2 ml-1">First Name</label>
-              <input 
-                type="text" 
-                placeholder="First Name"
-                value={firstName} 
-                onChange={(e) => setFirstName(e.target.value)} 
-                className="w-full h-12 px-5 rounded-xl border border-[#e5d5d0] text-base text-[#1d1d1f] bg-[#fcf9f8] focus:bg-white focus:border-[#7c2b3d] focus:ring-1 focus:ring-[#7c2b3d] focus:outline-none transition-all"
-                required 
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#9a8a85] mb-2 ml-1">Last Name</label>
-              <input 
-                type="text" 
-                placeholder="Last Name"
-                value={lastName} 
-                onChange={(e) => setLastName(e.target.value)} 
-                className="w-full h-12 px-5 rounded-xl border border-[#e5d5d0] text-base text-[#1d1d1f] bg-[#fcf9f8] focus:bg-white focus:border-[#7c2b3d] focus:ring-1 focus:ring-[#7c2b3d] focus:outline-none transition-all"
-                required 
-              />
-            </div>
+            <FloatingLabelInput 
+              id="firstName"
+              label="First Name"
+              type="text" 
+              value={firstName} 
+              onChange={setFirstName} 
+              required
+            />
+            <FloatingLabelInput 
+              id="lastName"
+              label="Last Name"
+              type="text" 
+              value={lastName} 
+              onChange={setLastName} 
+              required
+            />
           </div>
 
           {/* 2. Email Address (Fixed Input) */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#9a8a85] mb-2 ml-1">Email Address</label>
-            <input 
-              type="email" // 恢复为 email 类型，确保浏览器校验
-              placeholder="name@example.com"
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              className="w-full h-12 px-5 rounded-xl border border-[#e5d5d0] text-base text-[#1d1d1f] bg-[#fcf9f8] focus:bg-white focus:border-[#7c2b3d] focus:ring-1 focus:ring-[#7c2b3d] focus:outline-none transition-all"
-              required 
-            />
-          </div>
+          <FloatingLabelInput 
+            id="email"
+            label="Email Address"
+            type="email" 
+            value={email} 
+            onChange={setEmail} 
+            required
+          />
 
           {/* 3. Password */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#9a8a85] mb-2 ml-1">Password</label>
-            <input 
-              type="password" 
-              placeholder="At least 8 characters"
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              className="w-full h-12 px-5 rounded-xl border border-[#e5d5d0] text-base text-[#1d1d1f] bg-[#fcf9f8] focus:bg-white focus:border-[#7c2b3d] focus:ring-1 focus:ring-[#7c2b3d] focus:outline-none transition-all"
-              required 
-            />
-          </div>
+          <FloatingLabelInput 
+            id="password"
+            label="Password (At least 8 characters)"
+            type="password" 
+            value={password} 
+            onChange={setPassword} 
+            required
+          />
           
-          {/* 4. Confirm Password (新增确认密码框) */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#9a8a85] mb-2 ml-1">Confirm Password</label>
-            <input 
-              type="password" 
-              placeholder="Re-enter password"
-              value={confirmPassword} 
-              onChange={(e) => setConfirmPassword(e.target.value)} 
-              className="w-full h-12 px-5 rounded-xl border border-[#e5d5d0] text-base text-[#1d1d1f] bg-[#fcf9f8] focus:bg-white focus:border-[#7c2b3d] focus:ring-1 focus:ring-[#7c2b3d] focus:outline-none transition-all"
-              required 
-            />
-            <p className="text-[10px] text-[#9a8a85] mt-1.5 ml-1">Ensure passwords match for security.</p>
-          </div>
+          {/* 4. Confirm Password */}
+          <FloatingLabelInput 
+            id="confirmPassword"
+            label="Confirm Password"
+            type="password" 
+            value={confirmPassword} 
+            onChange={setConfirmPassword} 
+            required
+          />
 
           {/* 5. Marketing Checkbox */}
           <div className="pt-2">
