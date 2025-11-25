@@ -1,14 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
+import { supabase } from '../../supabaseClient'; // 引入 Supabase 客户端
 
 const Login = () => {
   const navigate = useNavigate();
+  
+  // 1. 添加状态管理
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // 模拟登录成功，跳转到个人中心或主页
-    navigate('/profile');
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 2. 调用 Supabase 登录接口
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // 登录成功，跳转到个人中心
+      navigate('/profile');
+    } catch (error) {
+      setError(error.message); // 显示错误信息
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,12 +56,18 @@ const Login = () => {
             <input 
               type="email" 
               placeholder="Email Address" 
+              value={email} // 绑定状态
+              onChange={(e) => setEmail(e.target.value)} // 更新状态
               className="w-full h-12 px-5 rounded-xl border border-[#e5d5d0] text-base placeholder-[#9a8a85] text-[#1d1d1f] bg-[#fcf9f8] focus:bg-white focus:border-[#7c2b3d] focus:ring-1 focus:ring-[#7c2b3d] focus:outline-none transition-all"
+              required
             />
             <input 
               type="password" 
               placeholder="Password" 
+              value={password} // 绑定状态
+              onChange={(e) => setPassword(e.target.value)} // 更新状态
               className="w-full h-12 px-5 rounded-xl border border-[#e5d5d0] text-base placeholder-[#9a8a85] text-[#1d1d1f] bg-[#fcf9f8] focus:bg-white focus:border-[#7c2b3d] focus:ring-1 focus:ring-[#7c2b3d] focus:outline-none transition-all"
+              required
             />
           </div>
           
@@ -51,8 +83,20 @@ const Login = () => {
             <a href="#" className="text-[#9a8a85] hover:text-[#7c2b3d] transition-colors">Forgot password?</a>
           </div>
 
-          <Button className="w-full h-12 text-base shadow-lg shadow-[#7c2b3d]/20" size="lg" type="submit">
-            Log In
+          {/* 错误提示区域 */}
+          {error && (
+            <div className="text-center text-sm text-red-500 bg-red-50 p-2 rounded-lg border border-red-100">
+              {error === 'Invalid login credentials' ? '账号或密码错误' : error}
+            </div>
+          )}
+
+          <Button 
+            className="w-full h-12 text-base shadow-lg shadow-[#7c2b3d]/20 disabled:opacity-70 disabled:cursor-not-allowed" 
+            size="lg" 
+            type="submit"
+            disabled={loading} // 登录中禁用按钮
+          >
+            {loading ? 'Logging in...' : 'Log In'}
           </Button>
         </form>
 
@@ -68,14 +112,14 @@ const Login = () => {
 
         {/* Social Login: 简化为图标按钮 */}
         <div className="grid grid-cols-2 gap-4">
-          <button className="h-12 rounded-xl border border-[#e5d5d0] flex items-center justify-center hover:bg-[#fcf9f8] hover:border-[#d0c0bc] transition-all">
+          <button type="button" className="h-12 rounded-xl border border-[#e5d5d0] flex items-center justify-center hover:bg-[#fcf9f8] hover:border-[#d0c0bc] transition-all">
             {/* Apple Logo */}
             <svg className="w-5 h-5 text-[#1d1d1f]" viewBox="0 0 384 512" fill="currentColor">
               <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 52.3-11.4 69.5-34.3z"/>
             </svg>
           </button>
           
-          <button className="h-12 rounded-xl border border-[#e5d5d0] flex items-center justify-center hover:bg-[#fcf9f8] hover:border-[#d0c0bc] transition-all">
+          <button type="button" className="h-12 rounded-xl border border-[#e5d5d0] flex items-center justify-center hover:bg-[#fcf9f8] hover:border-[#d0c0bc] transition-all">
             {/* Google Logo */}
             <svg className="w-5 h-5" viewBox="0 0 48 48">
               <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>

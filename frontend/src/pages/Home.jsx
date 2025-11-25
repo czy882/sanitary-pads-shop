@@ -7,21 +7,34 @@ import { PRODUCTS } from '../data/products';
 const Home = () => {
   const navigate = useNavigate();
 
+  // 辅助函数：根据产品ID获取对应的详情页路径
+  const getProductLink = (id) => {
+    switch(id) {
+      case 1: return '/day_comfort';
+      case 2: return '/night_sanctuary';
+      case 3: return '/overnight_protection';
+      case 4: return '/daily_liners';
+      default: return '/collections';
+    }
+  };
+
   return (
     // 柔和的奶油色背景，品牌色选中文本
     <div className="bg-[#f8f6f4] text-[#1d1d1f] min-h-screen font-sans selection:bg-[#7c2b3d] selection:text-white">
       
       {/* === Hero Section: 左右布局，产品图置顶/置右 === */}
       <section className="relative pt-32 pb-12 lg:pt-48 lg:pb-32 overflow-hidden min-h-[90vh] flex items-center">
-        <div className="max-w-[1400px] mx-auto px-6 w-full relative z-10">
-          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+        
+        {/* 核心修改：增加了 lg:px-28，让左右边距显著变大，内容更聚拢 */}
+        <div className="max-w-[1600px] mx-auto px-6 md:px-12 lg:px-28 w-full relative z-10">
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
             
             {/* 1. 左侧：文案区域 (Text Content) */}
             <div className="lg:w-1/2 text-center lg:text-left animate-slide-up order-2 lg:order-1">
               <div className="inline-block mb-6 px-4 py-1.5 border border-[#7c2b3d] rounded-full text-[11px] font-bold tracking-[0.2em] text-[#7c2b3d] uppercase bg-white/50 backdrop-blur-sm">
                 Global Exclusive Patent
               </div>
-              <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-light tracking-tight mb-8 text-[#7c2b3d] leading-[1.1]">
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-light tracking-tight mb-8 text-[#7c2b3d] leading-[1.1]">
                 The luxury of <br/> <span className="italic">100% Silk.</span>
               </h1>
               <p className="text-xl text-gray-600 mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed font-light">
@@ -41,10 +54,7 @@ const Home = () => {
 
             {/* 2. 右侧：核心产品主图 (Hero Image) */}
             <div className="lg:w-1/2 w-full relative animate-fade-in order-1 lg:order-2 flex justify-center lg:justify-end" style={{ animationDelay: '0.2s' }}>
-               {/* 这是一个大的产品展示位。
-                  建议放一张：产品包装盒 + 产品展开图的组合摄影，
-                  或者一张非常有质感的、带有丝绸光泽的产品特写。
-               */}
+               {/* 这是一个大的产品展示位。 */}
                <div className="relative w-full max-w-[600px] aspect-4/5 lg:aspect-square">
                   {/* 主图占位 */}
                   <div className="absolute inset-0 bg-white rounded-[3rem] shadow-[0_30px_60px_-15px_rgba(124,43,61,0.1)] overflow-hidden transform -rotate-2 hover:rotate-0 transition-transform duration-700 ease-out">
@@ -128,7 +138,8 @@ const Home = () => {
             {PRODUCTS.map((product, index) => (
               <div 
                 key={product.id}
-                onClick={() => navigate('/products')}
+                // 核心修改：点击产品卡片跳转到具体的产品详情页
+                onClick={() => navigate(getProductLink(product.id))}
                 className="group cursor-pointer flex flex-col animate-slide-up"
                 style={{ animationDelay: `${0.1 * index}s` }}
               >

@@ -130,7 +130,7 @@ const Philosophy = () => {
             <p className="text-xl text-gray-400 mb-12 font-light">
                Join thousands of women who have upgraded their cycle to AURORA.
             </p>
-            <Button variant="primary" size="lg" className="bg-[#f8f6f4] text-[#1d1d1f] hover:bg-white hover:text-[#7c2b3d]" onClick={() => navigate('/products')}>
+            <Button variant="primary" size="lg" className="bg-[#f8f6f4] text-[#1d1d1f] hover:bg-white hover:text-[#7c2b3d]" onClick={() => navigate('/collections')}>
                Shop the Collection
             </Button>
          </div>

@@ -38,8 +38,8 @@ const Collections = ({ onAddToCart }) => {
       </div>
 
       {/* === Product Grid === */}
-      <div className="max-w-[1400px] mx-auto px-6 pb-32">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+      <div className="max-w-[1400px] mx-auto px-8 pb-32">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10">
           
           {PRODUCTS.map((product) => (
             <div 
@@ -49,7 +49,7 @@ const Collections = ({ onAddToCart }) => {
               onClick={() => navigate(getProductLink(product.id))}
             >
               {/* 图片区域 */}
-              <div className="w-full md:w-1/2 aspect-4/5 bg-[#f9f9f9] rounded-4xl flex items-center justify-center relative overflow-hidden">
+              <div className="w-full md:w-1/2 aspect-2/3 bg-[#f9f9f9] rounded-4xl flex items-center justify-center relative overflow-hidden">
                  <img 
                    src={product.image} 
                    alt={product.name} 
