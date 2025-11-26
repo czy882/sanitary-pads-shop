@@ -46,10 +46,10 @@ const Collections = ({ onAddToCart }) => {
   // 根据产品 ID 返回正确的路由路径
   const getProductLink = (id) => {
     switch(id) {
-      case 1: return '/products/day-comfort';
-      case 2: return '/products/night-sanctuary';
-      case 3: return '/products/overnight-protection';
-      case 4: return '/products/daily-liners';
+      case 1: return '/day_comfort';
+      case 2: return '/night_sanctuary';
+      case 3: return '/overnight_protection';
+      case 4: return '/daily_liners';
       default: return '/products';
     }
   };

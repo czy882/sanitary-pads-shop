@@ -102,7 +102,7 @@ const Preferences = () => {
             <div className="space-y-6">
                <div className="flex items-center justify-between">
                   <div>
-                     <h3 className="font-medium mb-1">Personalized Ads</h3>
+                     <h3 className="font-medium mb-1">Personalised Ads</h3>
                      <p className="text-sm text-[#9a8a85]">Allow us to show you products based on your interests.</p>
                   </div>
                   <ToggleSwitch checked={settings.personalizedAds} onChange={() => handleToggle('personalizedAds')} />
