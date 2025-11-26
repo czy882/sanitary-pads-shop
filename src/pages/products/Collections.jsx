@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Feather, Wind, Sun, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Button from '../../components/Button';
 import { PRODUCTS } from '../../data/products';
 
-// --- 动画辅助组件：FadeIn (与 DayComfort/NightSanctuary 保持一致) ---
+// --- 动画辅助组件：FadeIn (与产品详情页逻辑一致) ---
 const FadeIn = ({ children, delay = 0, className = "" }) => {
   const [isVisible, setIsVisible] = useState(false);
   const domRef = useRef();
@@ -29,6 +29,7 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
   return (
     <div
       ref={domRef}
+      // 使用最新的慢速浮动效果: duration-[1500ms], ease-[cubic-bezier...]
       className={`transition-all duration-1500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform transform ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
       } ${className}`}
@@ -39,176 +40,108 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
   );
 };
 
-const DailyLiners = ({ onAddToCart }) => {
+const Collections = ({ onAddToCart }) => {
   const navigate = useNavigate();
-  const [quantity, setQuantity] = useState(1);
-  
-  // 获取 ID 为 4 的产品 (Daily Liners)
-  const product = PRODUCTS.find(p => p.id === 4);
 
-  if (!product) return <div className="pt-32 text-center">Product data missing</div>;
-
-  const handleQuantity = (type) => {
-    if (type === 'inc') setQuantity(q => q + 1);
-    if (type === 'dec') setQuantity(q => Math.max(1, q - 1));
+  // 根据产品 ID 返回正确的路由路径
+  const getProductLink = (id) => {
+    switch(id) {
+      case 1: return '/products/day-comfort';
+      case 2: return '/products/night-sanctuary';
+      case 3: return '/products/overnight-protection';
+      case 4: return '/products/daily-liners';
+      default: return '/products';
+    }
   };
 
   return (
-    <div className="bg-white min-h-screen font-sans text-[#1d1d1f]">
+    <div className="bg-[#f8f6f4] min-h-screen font-sans text-[#1d1d1f]">
       
-      <div className="max-w-[1400px] mx-auto pt-24 md:pt-32 px-6">
-        <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
+      {/* === Header === */}
+      <div className="pt-32 pb-16 text-center px-6">
+        <FadeIn>
+          <span className="text-[#7c2b3d] font-bold tracking-[0.2em] uppercase text-xs mb-4 block">The Collection</span>
+        </FadeIn>
+        <FadeIn delay={100}>
+          <h1 className="text-4xl md:text-6xl font-serif font-medium text-[#1d1d1f] mb-6">
+            Care for every cycle.
+          </h1>
+        </FadeIn>
+        <FadeIn delay={200}>
+          <p className="text-gray-500 max-w-xl mx-auto font-light text-lg">
+            Premium silk protection designed for your body's unique needs, from light days to heavy nights.
+          </p>
+        </FadeIn>
+      </div>
+
+      {/* === Product Grid === */}
+      <div className="max-w-[1400px] mx-auto px-6 pb-32">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
           
-          {/* === Left: Visual Gallery === */}
-          <div className="lg:w-1/2 h-fit lg:sticky lg:top-32">
-            <FadeIn>
-              {/* 主图：明亮、清新的色调 */}
-              <div className="bg-[#f0f7f4] rounded-[3rem] aspect-4/5 mb-6 relative overflow-hidden flex items-center justify-center group">
-                 <img 
-                   src={product.image} 
-                   alt={product.name} 
-                   className="w-3/4 h-3/4 object-contain drop-shadow-xl transition-transform duration-700 group-hover:scale-105"
-                 />
-                 <div className="absolute bottom-6 left-0 w-full text-center text-[#8a9a95] text-xs tracking-widest uppercase">
-                    Everyday Essentials
-                 </div>
+          {PRODUCTS.map((product, index) => (
+            <FadeIn key={product.id} delay={index * 150} className="h-full">
+              <div 
+                className="group bg-white rounded-[2.5rem] p-8 md:p-12 shadow-[0_20px_40px_-10px_rgba(124,43,61,0.05)] hover:shadow-[0_30px_60px_-15px_rgba(124,43,61,0.1)] transition-all duration-500 border border-[#f0e8e4] flex flex-col md:flex-row items-center gap-8 md:gap-12 cursor-pointer h-full"
+                // 核心交互：点击卡片跳转
+                onClick={() => navigate(getProductLink(product.id))}
+              >
+                {/* 图片区域 */}
+                <div className="w-full md:w-1/2 aspect-4/5 bg-[#f9f9f9] rounded-4xl flex items-center justify-center relative overflow-hidden">
+                   <img 
+                     src={product.image} 
+                     alt={product.name} 
+                     className="w-3/4 h-3/4 object-contain mix-blend-multiply transform transition-transform duration-700 group-hover:scale-105"
+                   />
+                   {/* 悬停提示 */}
+                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/2 transition-colors duration-500 flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 bg-white px-6 py-3 rounded-full text-sm font-medium text-[#7c2b3d] shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                        View Details
+                      </span>
+                   </div>
+                </div>
+
+                {/* 信息区域 */}
+                <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left h-full justify-center">
+                   <div className="mb-auto">
+                      <h2 className="text-3xl font-serif font-medium text-[#1d1d1f] mb-2 group-hover:text-[#7c2b3d] transition-colors">
+                        {product.name}
+                      </h2>
+                      <p className="text-[#9a8a85] text-sm tracking-wider uppercase font-medium mb-4">{product.tagline}</p>
+                      <p className="text-gray-600 font-light leading-relaxed mb-6">
+                        {product.description}
+                      </p>
+                      
+                      {/* 规格标签 */}
+                      <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-8">
+                        {product.specs.map((spec, i) => (
+                          <span key={i} className="px-3 py-1 bg-[#f8f6f4] text-[#5a5a5a] text-xs rounded-full border border-[#e5d5d0]">
+                            {spec}
+                          </span>
+                        ))}
+                      </div>
+                   </div>
+
+                   <div className="flex items-center gap-6 w-full mt-auto pt-6 border-t border-[#f0e8e4]">
+                      <span className="text-2xl font-serif text-[#1d1d1f]">${product.price}</span>
+                      <Button 
+                        className="flex-1 shadow-lg shadow-[#7c2b3d]/10"
+                        onClick={(e) => {
+                          e.stopPropagation(); // 防止触发卡片点击
+                          navigate(getProductLink(product.id));
+                        }}
+                      >
+                        Shop Now <ArrowRight size={16} className="ml-2" />
+                      </Button>
+                   </div>
+                </div>
               </div>
             </FadeIn>
-            
-            {/* 细节图 */}
-            <div className="grid grid-cols-2 gap-4">
-               <FadeIn delay={150}>
-                 <div className="bg-[#f8f6f4] rounded-4xl aspect-square relative overflow-hidden group cursor-pointer">
-                    <img src="https://placehold.co/600x600/fdfbfb/7c2b3d?text=Feather+Light" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Lightweight" />
-                    <span className="absolute bottom-3 left-4 text-[10px] uppercase tracking-widest text-[#7c2b3d]">Feather Light</span>
-                 </div>
-               </FadeIn>
-               <FadeIn delay={300}>
-                 <div className="bg-[#f8f6f4] rounded-4xl aspect-square relative overflow-hidden group cursor-pointer">
-                    <img src="https://placehold.co/600x600/fdfbfb/7c2b3d?text=Breathable+Matrix" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Breathable" />
-                    <span className="absolute bottom-3 left-4 text-[10px] uppercase tracking-widest text-[#7c2b3d]">Air-Through Tech</span>
-                 </div>
-               </FadeIn>
-            </div>
-          </div>
+          ))}
 
-          {/* === Right: Content === */}
-          <div className="lg:w-1/2 pb-20">
-            <FadeIn>
-              <button onClick={() => navigate('/')} className="text-gray-400 text-sm mb-6 flex items-center hover:text-[#7c2b3d] transition-colors">
-                <ChevronRight className="rotate-180 mr-1" size={14} /> Back to Home
-              </button>
-            </FadeIn>
-
-            <FadeIn delay={100}>
-              <h1 className="text-4xl md:text-6xl font-serif font-medium text-[#1d1d1f] mb-3 tracking-tight">
-                {product.name}
-              </h1>
-            </FadeIn>
-            
-            <FadeIn delay={200}>
-              <p className="text-xl text-gray-500 mb-8 font-light flex items-center gap-2">
-                <Sun size={20} className="text-[#7c2b3d]" /> {product.tagline}
-              </p>
-            </FadeIn>
-            
-            <FadeIn delay={300}>
-              <div className="flex items-baseline gap-4 mb-8 border-b border-gray-100 pb-8">
-                 <span className="text-3xl font-medium">${product.price}</span>
-                 <span className="text-sm text-gray-400">GST Included</span>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={400}>
-              <p className="text-lg text-gray-600 leading-relaxed mb-10">
-                Ideally suited for daily freshness, spotting, or light flow days. Our <strong>Daily Liners</strong> are so thin and breathable, 
-                you'll forget you're wearing them. Infused with silk amino acids for daily intimate skincare.
-              </p>
-            </FadeIn>
-
-            {/* Specs Grid */}
-            <FadeIn delay={500}>
-              <div className="grid grid-cols-2 gap-4 mb-10">
-                 <div className="border border-gray-200 rounded-xl p-4">
-                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Length</div>
-                    <div className="font-medium">{product.specs[0]}</div>
-                 </div>
-                 <div className="border border-gray-200 rounded-xl p-4">
-                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Quantity</div>
-                    <div className="font-medium">{product.specs[2]}</div>
-                 </div>
-              </div>
-            </FadeIn>
-
-            {/* Purchase Action */}
-            <FadeIn delay={600}>
-              <div className="flex flex-col sm:flex-row gap-4 mb-12 sticky top-4 z-20 bg-white/90 backdrop-blur-sm py-4">
-                 <div className="flex items-center justify-between bg-[#f5f5f7] rounded-full px-4 h-14 sm:w-40">
-                    <button onClick={() => handleQuantity('dec')} className="text-xl px-2 hover:text-[#7c2b3d]">-</button>
-                    <span className="font-medium">{quantity}</span>
-                    <button onClick={() => handleQuantity('inc')} className="text-xl px-2 hover:text-[#7c2b3d]">+</button>
-                 </div>
-                 <Button 
-                   className="flex-1 h-14 text-lg shadow-xl shadow-[#7c2b3d]/20" 
-                   onClick={() => onAddToCart({...product, quantity})}
-                 >
-                   Add to Cart - ${(product.price * quantity).toFixed(2)}
-                 </Button>
-              </div>
-            </FadeIn>
-
-            {/* Detailed Features */}
-            <div className="space-y-24 mt-20">
-               
-               {/* Feature 1: Invisible Comfort */}
-               <FadeIn>
-                  <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
-                     <Feather size={24} />
-                     <h3 className="text-sm font-bold uppercase tracking-widest">Barely-There Feel</h3>
-                  </div>
-                  <h4 className="text-3xl font-serif mb-4">Invisible comfort.</h4>
-                  <p className="text-gray-600 leading-relaxed mb-6">
-                     Ultra-thin construction meets the softness of 100% Mulberry Silk. Designed to move with your body 
-                     like a second skin, providing discreet protection that never compromises on comfort.
-                  </p>
-               </FadeIn>
-
-               {/* Feature 2: Daily Care */}
-               <FadeIn>
-                  <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
-                     <Sparkles size={24} />
-                     <h3 className="text-sm font-bold uppercase tracking-widest">Daily Skincare</h3>
-                  </div>
-                  <h4 className="text-3xl font-serif mb-4">Nourish, every single day.</h4>
-                  <p className="text-gray-600 leading-relaxed mb-6">
-                     Why settle for plastic? Our silk liners naturally release amino acids to moisturize and protect 
-                     sensitive skin daily. The <strong>99% antibacterial</strong> property keeps you feeling shower-fresh from morning to night.
-                  </p>
-               </FadeIn>
-
-               {/* Feature 3: Breathability */}
-               <FadeIn>
-                  <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
-                     <Wind size={24} />
-                     <h3 className="text-sm font-bold uppercase tracking-widest">Complete Breathability</h3>
-                  </div>
-                  <h4 className="text-3xl font-serif mb-4">Let your skin breathe.</h4>
-                  <p className="text-gray-600 leading-relaxed mb-6">
-                     Our patented spunlace technology eliminates the need for glue blocks, allowing air to circulate freely. 
-                     Maintains a healthy, dry environment to prevent bacteria growth and odor.
-                  </p>
-                  <div className="flex gap-4 text-sm font-medium text-gray-500">
-                     <span className="flex items-center gap-2"><ShieldCheck size={16} className="text-[#7c2b3d]"/> pH Balanced 5.7</span>
-                     <span className="flex items-center gap-2"><ShieldCheck size={16} className="text-[#7c2b3d]"/> 0% Fragrance</span>
-                  </div>
-               </FadeIn>
-
-            </div>
-          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default DailyLiners;
+export default Collections;
