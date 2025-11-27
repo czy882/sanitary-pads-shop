@@ -46,7 +46,7 @@ const Navbar = ({ cartCount }) => {
           {/* 1. Logo */}
           <Link to="/" className="group relative z-10">
              <h1 className={`font-serif text-2xl md:text-3xl tracking-tight font-medium transition-colors duration-300 ${isScrolled ? brandColor : 'text-[#2c2c2c]'}`}>
-               AURORA
+               ESTORA
              </h1>
           </Link>
 

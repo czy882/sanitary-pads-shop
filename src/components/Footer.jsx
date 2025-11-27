@@ -22,7 +22,7 @@ const Footer = () => (
           </ul>
         </div>
         <div>
-          <h4 className="font-semibold text-[#1d1d1f] mb-2">About AURORA</h4>
+          <h4 className="font-semibold text-[#1d1d1f] mb-2">About ESTORA</h4>
           <ul className="space-y-2">
              <li>Our Story</li>
              <li>Sustainability</li>
@@ -41,7 +41,7 @@ const Footer = () => (
         </div>
       </div>
       <div className="border-t border-gray-200 pt-4 flex flex-col md:flex-row justify-between items-center gap-4">
-        <p>Copyright © 2025 AURORA Pty Ltd. All rights reserved.</p>
+        <p>Copyright © 2025 ESTORA Pty Ltd. All rights reserved.</p>
         <div className="flex gap-4">
           <span className="hover:underline cursor-pointer">Privacy Policy</span>
           <span className="hover:underline cursor-pointer">Terms of Use</span>
