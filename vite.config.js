@@ -12,4 +12,16 @@ export default defineConfig({
     }),
     tailwindcss(),
   ],
+
+  // ✅ 新增：开发环境代理，用于连接 WordPress / Woo / CoCart
+  server: {
+    proxy: {
+      // 中文注释：代理所有 /wp-json 请求到 estora.au，解决 CORS
+      '/wp-json': {
+        target: 'https://estora.au',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
 })

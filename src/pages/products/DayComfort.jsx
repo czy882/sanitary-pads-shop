@@ -1,10 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Check, ShieldCheck, Leaf, Droplets, Wind } from 'lucide-react';
+import { ChevronRight, Check, ShieldCheck, Leaf, Droplets, Wind, Loader2 } from 'lucide-react';
 import Button from '../../components/Button';
-import { PRODUCTS } from '../../data/products';
+import { useQuery, gql } from '@apollo/client'; // 1. 引入 Apollo
+import LoadingScreen from '../../components/LoadingScreen'; // 确保你有这个组件，没有的话删掉这行用简单的div
 
-// --- 动画辅助组件：FadeIn (优化版：更慢、更优雅) ---
+// --- 2. 定义 GraphQL 查询 ---
+// 我们通过 slug: "day-comfort" 来精准抓取这个产品
+// 包含：ID, 名字, 价格, 图片, 短描述(做Tagline), 长描述
+const GET_DAY_COMFORT = gql`
+  query GetDayComfort {
+    product(id: "day-comfort", idType: SLUG) {
+      id
+      databaseId
+      name
+      slug
+      shortDescription(format: RAW) # 用作 Tagline (副标题)
+      description(format: RAW)      # 用作主要介绍
+      image {
+        sourceUrl
+      }
+      ... on SimpleProduct {
+        price
+        regularPrice
+        stockStatus
+      }
+    }
+  }
+`;
+
+// --- 动画辅助组件 (保持你的优化版不变) ---
 const FadeIn = ({ children, delay = 0, className = "" }) => {
   const [isVisible, setIsVisible] = useState(false);
   const domRef = useRef();
@@ -12,13 +37,11 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
-        // 只有当元素进入视口时才设置为可见
         if (entry.isIntersecting) {
           setIsVisible(true);
-          // observer.unobserve(entry.target); // 如果只想触发一次，可以取消注释这行
         }
       });
-    }, { threshold: 0.1 }); // 10% 可见时触发
+    }, { threshold: 0.1 });
 
     const { current } = domRef;
     if (current) observer.observe(current);
@@ -31,12 +54,8 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
   return (
     <div
       ref={domRef}
-      // 核心修改：
-      // 1. duration-[1500ms]: 将动画时间从 1s 延长到 1.5s，增加“重量感”和“优雅感”
-      // 2. ease-[cubic-bezier(0.16,1,0.3,1)]: 保持这种类似 Apple 的物理缓动曲线
-      // 3. will-change-transform: 性能优化，防止慢速动画卡顿
       className={`transition-all duration-1500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform transform ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16' // 稍微增加位移距离(12->16)，配合慢速更显张力
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
       } ${className}`}
       style={{ transitionDelay: `${delay}ms` }}
     >
@@ -48,15 +67,48 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
 const DayComfort = ({ onAddToCart }) => {
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
-  
-  const product = PRODUCTS.find(p => p.id === 1);
 
-  if (!product) return <div className="pt-32 text-center">Product data for Day Comfort is missing. Please check products.js.</div>;
+  // --- 3. 发起查询，获取后台数据 ---
+  const { loading, error, data } = useQuery(GET_DAY_COMFORT);
+
+  // 4. 定义规格 (因为WP默认没有这个字段，为了保持UI布局，我们暂时在这里定义)
+  // 如果以后需要动态化，可以使用 Attributes
+  const SPECS = ["245mm", "Day Use", "10 Pads/Box"];
 
   const handleQuantity = (type) => {
     if (type === 'inc') setQuantity(q => q + 1);
     if (type === 'dec') setQuantity(q => Math.max(1, q - 1));
   };
+
+  // 5. 价格解析辅助函数 (把 "$19.90" 这种字符串变成数字 19.90)
+  const getNumericPrice = (priceString) => {
+    if (!priceString) return 0;
+    // 移除除了数字和小数点以外的所有字符
+    return parseFloat(priceString.replace(/[^0-9.]/g, ''));
+  };
+
+  // --- 加载与错误处理 ---
+  if (loading) return <LoadingScreen />;
+  
+  if (error) return (
+    <div className="min-h-screen flex flex-col items-center justify-center text-red-500 bg-[#f8f6f4]">
+      <p className="text-xl mb-4">Failed to load product.</p>
+      <p className="text-sm">请检查 WordPress 后台是否存在 Slug 为 "day-comfort" 的产品。</p>
+      <Button className="mt-4" onClick={() => window.location.reload()}>Retry</Button>
+    </div>
+  );
+
+  const product = data?.product;
+  if (!product) return <div className="pt-32 text-center">Product not found.</div>;
+
+  // 计算总价 (用于按钮显示)
+  const unitPrice = getNumericPrice(product.price);
+  const totalPrice = (unitPrice * quantity).toFixed(2);
+
+  // 处理 Tagline (去除 HTML 标签)
+  const tagline = product.shortDescription 
+    ? product.shortDescription.replace(/<[^>]*>?/gm, '') 
+    : "Your daily ritual of softness and protection.";
 
   return (
     <div className="bg-white min-h-screen font-sans text-[#1d1d1f]">
@@ -67,20 +119,21 @@ const DayComfort = ({ onAddToCart }) => {
           
           {/* Left Column: Sticky Gallery */}
           <div className="lg:w-1/2 h-fit lg:sticky lg:top-32">
-            {/* 这里通常是视口立刻可见区域，可以保持较快的初始载入，或者也用慢速 FadeIn 统一风格 */}
             <FadeIn className="h-full">
               <div className="bg-[#f8f6f4] rounded-[3rem] aspect-4/5 mb-6 relative overflow-hidden flex items-center justify-center group">
+                 {/* 动态主图 */}
                  <img 
-                   src={product.image} 
+                   src={product.image?.sourceUrl || 'https://placehold.co/600x800/f8f6f4/7c2b3d?text=No+Image'} 
                    alt={product.name} 
                    className="w-3/4 h-3/4 object-contain drop-shadow-2xl transition-transform duration-700 group-hover:scale-105"
                  />
                  <div className="absolute bottom-6 left-0 w-full text-center text-[#9a8a85] text-xs tracking-widest uppercase">
-                    Premium Packaging
+                   Premium Packaging
                  </div>
               </div>
             </FadeIn>
             
+            {/* 这里的次要图片如果是静态资源，可以保留不动；如果是动态的，需要后台相册支持 */}
             <div className="grid grid-cols-2 gap-4">
                <FadeIn delay={150}>
                  <div className="bg-[#f8f6f4] rounded-4xl aspect-square relative overflow-hidden group cursor-pointer">
@@ -106,40 +159,54 @@ const DayComfort = ({ onAddToCart }) => {
             </FadeIn>
 
             <FadeIn delay={100}>
+              {/* 动态标题 */}
               <h1 className="text-4xl md:text-6xl font-serif font-medium text-[#1d1d1f] mb-3 tracking-tight">
                 {product.name}
               </h1>
             </FadeIn>
             
             <FadeIn delay={200}>
-              <p className="text-xl text-gray-500 mb-8 font-light">{product.tagline}</p>
+              {/* 动态 Tagline */}
+              <p className="text-xl text-gray-500 mb-8 font-light">
+                  {tagline}
+              </p>
             </FadeIn>
             
             <FadeIn delay={300}>
               <div className="flex items-baseline gap-4 mb-8 border-b border-gray-100 pb-8">
-                 <span className="text-3xl font-medium">${product.price}</span>
+                 {/* 动态价格 */}
+                 <span className="text-3xl font-medium">{product.price}</span>
                  <span className="text-sm text-gray-400">GST Included</span>
+                 {/* 库存状态 */}
+                 {product.stockStatus === 'OUT_OF_STOCK' && (
+                    <span className="text-sm text-red-500 font-bold ml-auto">Out of Stock</span>
+                 )}
               </div>
             </FadeIn>
 
             <FadeIn delay={400}>
               <p className="text-lg text-gray-600 leading-relaxed mb-10">
-                {product.description} Designed for the modern Australian lifestyle, our Day Comfort pads combine the 
+                {/* 保留了你的硬编码文案结构，但在开头尝试注入后台描述。
+                   如果你想完全用后台文字，可以用 dangerouslySetInnerHTML 替换这一整段。
+                */}
+                {product.description ? product.description.replace(/<[^>]*>?/gm, '') : ''} 
+                {' '}
+                Designed for the modern Australian lifestyle, our Day Comfort pads combine the 
                 luxury of <strong>100% Mulberry Silk</strong> with patented absorbency technology. 
                 Perfect for active days, office hours, or light movement.
               </p>
             </FadeIn>
 
-            {/* 规格展示 */}
+            {/* 规格展示 (静态 SPECS) */}
             <FadeIn delay={500}>
               <div className="grid grid-cols-2 gap-4 mb-10">
                  <div className="border border-gray-200 rounded-xl p-4">
                     <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Length</div>
-                    <div className="font-medium">{product.specs[0]}</div>
+                    <div className="font-medium">{SPECS[0]}</div>
                  </div>
                  <div className="border border-gray-200 rounded-xl p-4">
                     <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Quantity</div>
-                    <div className="font-medium">{product.specs[2]}</div>
+                    <div className="font-medium">{SPECS[2]}</div>
                  </div>
               </div>
             </FadeIn>
@@ -154,17 +221,28 @@ const DayComfort = ({ onAddToCart }) => {
                  </div>
                  <Button 
                    className="flex-1 h-14 text-lg shadow-xl shadow-[#7c2b3d]/20" 
-                   onClick={() => onAddToCart({...product, quantity})}
+                   // 构造购物车对象 (使用 databaseId 作为唯一ID)
+                   onClick={() => onAddToCart({
+                       id: product.databaseId, 
+                       name: product.name,
+                       price: product.price, 
+                       image: product.image?.sourceUrl,
+                       quantity
+                   })}
+                   disabled={product.stockStatus === 'OUT_OF_STOCK'}
                  >
-                   Add to Cart - ${(product.price * quantity).toFixed(2)}
+                   {product.stockStatus === 'OUT_OF_STOCK' 
+                      ? 'Out of Stock' 
+                      : `Add to Cart - $${totalPrice}`
+                   }
                  </Button>
               </div>
             </FadeIn>
 
-            {/* === 详细卖点介绍 (滚动触发区域) === */}
-            <div className="space-y-24 mt-20"> {/* 增加间距，让滚动更有节奏感 */}
+            {/* === 详细卖点介绍 (保持不变) === */}
+            <div className="space-y-24 mt-20">
+               {/* ... (这里保留了你所有的 Feature 代码，完全不动) ... */}
                
-               {/* Feature 1: 材质 */}
                <FadeIn>
                   <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
                      <Leaf size={24} />
@@ -183,7 +261,6 @@ const DayComfort = ({ onAddToCart }) => {
                   </ul>
                </FadeIn>
 
-               {/* Feature 2: 工艺 */}
                <FadeIn>
                   <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
                      <Wind size={24} />
@@ -203,7 +280,7 @@ const DayComfort = ({ onAddToCart }) => {
                         <div>
                            <div className="font-serif text-xl mb-2">50x Instant Absorption</div>
                            <p className="text-sm text-gray-500 leading-relaxed">
-                              Our core locks fluid instantly—holding up to 50x its own weight—keeping the surface 
+                              Our core locks fluid instantly—holding up to 50x its weight—keeping the surface 
                               dry and pristine. No reverse osmosis, just confidence.
                            </p>
                         </div>
@@ -211,7 +288,6 @@ const DayComfort = ({ onAddToCart }) => {
                   </div>
                </FadeIn>
 
-               {/* Feature 3: 安全 */}
                <FadeIn>
                   <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
                      <ShieldCheck size={24} />
