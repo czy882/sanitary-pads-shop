@@ -1,319 +1,436 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Check, ShieldCheck, Leaf, Droplets, Wind, Loader2 } from 'lucide-react';
-import Button from '../../components/Button';
-import { useQuery, gql } from '@apollo/client'; // 1. 引入 Apollo
-import LoadingScreen from '../../components/LoadingScreen'; // 确保你有这个组件，没有的话删掉这行用简单的div
+// src/pages/DayComfort.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import Reveal from "../../components/Reveal";
+import { fetchProductBySlug } from "../../lib/wpProducts";
 
-// --- 2. 定义 GraphQL 查询 ---
-// 我们通过 slug: "day-comfort" 来精准抓取这个产品
-// 包含：ID, 名字, 价格, 图片, 短描述(做Tagline), 长描述
-const GET_DAY_COMFORT = gql`
-  query GetDayComfort {
-    product(id: "day-comfort", idType: SLUG) {
-      id
-      databaseId
-      name
-      slug
-      shortDescription(format: RAW) # 用作 Tagline (副标题)
-      description(format: RAW)      # 用作主要介绍
-      image {
-        sourceUrl
-      }
-      ... on SimpleProduct {
-        price
-        regularPrice
-        stockStatus
-      }
-    }
-  }
-`;
+// ✅ 改成你 Woo 后台 DayComfort 的真实 slug
+const DAY_COMFORT_SLUG = "day-comfort";
 
-// --- 动画辅助组件 (保持你的优化版不变) ---
-const FadeIn = ({ children, delay = 0, className = "" }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const domRef = useRef();
+export default function DayComfort() {
+  const [product, setProduct] = useState(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      });
-    }, { threshold: 0.1 });
-
-    const { current } = domRef;
-    if (current) observer.observe(current);
-
+    let mounted = true;
+    fetchProductBySlug(DAY_COMFORT_SLUG)
+      .then((p) => mounted && setProduct(p))
+      .catch(() => mounted && setProduct(null));
     return () => {
-      if (current) observer.unobserve(current);
-    }
+      mounted = false;
+    };
   }, []);
 
-  return (
-    <div
-      ref={domRef}
-      className={`transition-all duration-1500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform transform ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-      } ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-const DayComfort = ({ onAddToCart }) => {
-  const navigate = useNavigate();
-  const [quantity, setQuantity] = useState(1);
-
-  // --- 3. 发起查询，获取后台数据 ---
-  const { loading, error, data } = useQuery(GET_DAY_COMFORT);
-
-  // 4. 定义规格 (因为WP默认没有这个字段，为了保持UI布局，我们暂时在这里定义)
-  // 如果以后需要动态化，可以使用 Attributes
-  const SPECS = ["245mm", "Day Use", "10 Pads/Box"];
-
-  const handleQuantity = (type) => {
-    if (type === 'inc') setQuantity(q => q + 1);
-    if (type === 'dec') setQuantity(q => Math.max(1, q - 1));
-  };
-
-  // 5. 价格解析辅助函数 (把 "$19.90" 这种字符串变成数字 19.90)
-  const getNumericPrice = (priceString) => {
-    if (!priceString) return 0;
-    // 移除除了数字和小数点以外的所有字符
-    return parseFloat(priceString.replace(/[^0-9.]/g, ''));
-  };
-
-  // --- 加载与错误处理 ---
-  if (loading) return <LoadingScreen />;
-  
-  if (error) return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-red-500 bg-[#f8f6f4]">
-      <p className="text-xl mb-4">Failed to load product.</p>
-      <p className="text-sm">请检查 WordPress 后台是否存在 Slug 为 "day-comfort" 的产品。</p>
-      <Button className="mt-4" onClick={() => window.location.reload()}>Retry</Button>
-    </div>
-  );
-
-  const product = data?.product;
-  if (!product) return <div className="pt-32 text-center">Product not found.</div>;
-
-  // 计算总价 (用于按钮显示)
-  const unitPrice = getNumericPrice(product.price);
-  const totalPrice = (unitPrice * quantity).toFixed(2);
-
-  // 处理 Tagline (去除 HTML 标签)
-  const tagline = product.shortDescription 
-    ? product.shortDescription.replace(/<[^>]*>?/gm, '') 
-    : "Your daily ritual of softness and protection.";
+  const buyUrl = useMemo(() => {
+    // ✅ 最稳：直接跳 Woo 原生产品购买页
+    // 如果没拉到，就用 fallback（也能先跑起来）
+    return product?.permalink || `https://estora.au/product/${DAY_COMFORT_SLUG}/`;
+  }, [product]);
 
   return (
-    <div className="bg-white min-h-screen font-sans text-[#1d1d1f]">
-      
-      {/* === Main Product Section === */}
-      <div className="max-w-[1400px] mx-auto pt-24 md:pt-32 px-6">
-        <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
-          
-          {/* Left Column: Sticky Gallery */}
-          <div className="lg:w-1/2 h-fit lg:sticky lg:top-32">
-            <FadeIn className="h-full">
-              <div className="bg-[#f8f6f4] rounded-[3rem] aspect-4/5 mb-6 relative overflow-hidden flex items-center justify-center group">
-                 {/* 动态主图 */}
-                 <img 
-                   src={product.image?.sourceUrl || 'https://placehold.co/600x800/f8f6f4/7c2b3d?text=No+Image'} 
-                   alt={product.name} 
-                   className="w-3/4 h-3/4 object-contain drop-shadow-2xl transition-transform duration-700 group-hover:scale-105"
-                 />
-                 <div className="absolute bottom-6 left-0 w-full text-center text-[#9a8a85] text-xs tracking-widest uppercase">
-                   Premium Packaging
-                 </div>
+    <div className="bg-[#f8f6f4] text-[#1d1d1f]">
+      {/* 0. PageShell / 页面壳与全局节奏 */}
+      <div className="mx-auto max-w-[1200px] px-6 md:px-10">
+        {/* 1. HeroIntro / 首屏产品宣言 */}
+        <section className="py-16 md:py-24">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <Reveal>
+              <div className="space-y-6">
+                <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">
+                  DayComfort
+                </h1>
+
+                <p className="text-lg md:text-xl leading-relaxed text-[#1d1d1f]/80 max-w-[42ch]">
+                  {/* Copy Placeholder：一句克制的高端宣言 */}
+                  日用舒适的重新定义。更轻、更透气、更贴合。
+                </p>
+
+                <div className="flex items-center gap-3 pt-2">
+                  {/* ✅ 去购买（联动 Woo 产品 permalink） */}
+                  <a
+                    href={buyUrl}
+                    className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-medium
+                               bg-[#7c2b3d] text-white hover:opacity-90 transition"
+                  >
+                    去购买 DayComfort
+                  </a>
+
+                  <a
+                    href="#section-a"
+                    className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-medium
+                               border border-[#1d1d1f]/20 hover:border-[#1d1d1f]/40 transition"
+                  >
+                    了解更多
+                  </a>
+                </div>
+
+                {/* Price Placeholder（可选） */}
+                {product?.price ? (
+                  <p className="text-sm text-[#1d1d1f]/60">价格：{product.price}</p>
+                ) : (
+                  <p className="text-sm text-[#1d1d1f]/50">价格占位（从 Woo 拉取）</p>
+                )}
               </div>
-            </FadeIn>
-            
-            {/* 这里的次要图片如果是静态资源，可以保留不动；如果是动态的，需要后台相册支持 */}
-            <div className="grid grid-cols-2 gap-4">
-               <FadeIn delay={150}>
-                 <div className="bg-[#f8f6f4] rounded-4xl aspect-square relative overflow-hidden group cursor-pointer">
-                    <img src="https://placehold.co/600x600/fdfbfb/7c2b3d?text=Silk+Texture+Macro" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Texture" />
-                    <span className="absolute bottom-3 left-4 text-[10px] uppercase tracking-widest text-[#7c2b3d]">Macro Texture</span>
-                 </div>
-               </FadeIn>
-               <FadeIn delay={300}>
-                 <div className="bg-[#f8f6f4] rounded-4xl aspect-square relative overflow-hidden group cursor-pointer">
-                    <img src="https://placehold.co/600x600/fdfbfb/7c2b3d?text=Ultra+Thin+Profile" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Thin Profile" />
-                    <span className="absolute bottom-3 left-4 text-[10px] uppercase tracking-widest text-[#7c2b3d]">0.1cm Ultra-Thin</span>
-                 </div>
-               </FadeIn>
-            </div>
+            </Reveal>
+
+            <Reveal delayMs={120}>
+              <div className="w-full">
+                <div className="aspect-[4/3] rounded-2xl bg-black/5 overflow-hidden">
+                  {/* HeroImage Placeholder：产品主视觉大图 */}
+                  <div className="h-full w-full flex items-center justify-center text-sm text-[#1d1d1f]/50">
+                    Hero Image Placeholder（产品主视觉）
+                  </div>
+                </div>
+              </div>
+            </Reveal>
           </div>
+        </section>
 
-          {/* Right Column: Product Info & Story */}
-          <div className="lg:w-1/2 pb-20">
-            <FadeIn>
-              <button onClick={() => navigate('/')} className="text-gray-400 text-sm mb-6 flex items-center hover:text-[#7c2b3d] transition-colors">
-                <ChevronRight className="rotate-180 mr-1" size={14} /> Back to Home
-              </button>
-            </FadeIn>
-
-            <FadeIn delay={100}>
-              {/* 动态标题 */}
-              <h1 className="text-4xl md:text-6xl font-serif font-medium text-[#1d1d1f] mb-3 tracking-tight">
-                {product.name}
-              </h1>
-            </FadeIn>
-            
-            <FadeIn delay={200}>
-              {/* 动态 Tagline */}
-              <p className="text-xl text-gray-500 mb-8 font-light">
-                  {tagline}
+        {/* 2. OneLinePromise / 一句话核心价值 */}
+        <section className="py-14 md:py-20 border-t border-[#1d1d1f]/10">
+          <Reveal>
+            <div className="max-w-[900px]">
+              <h2 className="text-3xl md:text-5xl font-semibold tracking-tight leading-tight">
+                {/* Placeholder：一行大标题 */}
+                轻到几乎忘记它的存在。
+              </h2>
+              <p className="mt-5 text-base md:text-lg text-[#1d1d1f]/70 max-w-[60ch] leading-relaxed">
+                {/* Placeholder：解释 1-2 句话 */}
+                为日常节奏而生：让舒适、透气与贴合成为默认体验。
               </p>
-            </FadeIn>
-            
-            <FadeIn delay={300}>
-              <div className="flex items-baseline gap-4 mb-8 border-b border-gray-100 pb-8">
-                 {/* 动态价格 */}
-                 <span className="text-3xl font-medium">{product.price}</span>
-                 <span className="text-sm text-gray-400">GST Included</span>
-                 {/* 库存状态 */}
-                 {product.stockStatus === 'OUT_OF_STOCK' && (
-                    <span className="text-sm text-red-500 font-bold ml-auto">Out of Stock</span>
-                 )}
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={400}>
-              <p className="text-lg text-gray-600 leading-relaxed mb-10">
-                {/* 保留了你的硬编码文案结构，但在开头尝试注入后台描述。
-                   如果你想完全用后台文字，可以用 dangerouslySetInnerHTML 替换这一整段。
-                */}
-                {product.description ? product.description.replace(/<[^>]*>?/gm, '') : ''} 
-                {' '}
-                Designed for the modern Australian lifestyle, our Day Comfort pads combine the 
-                luxury of <strong>100% Mulberry Silk</strong> with patented absorbency technology. 
-                Perfect for active days, office hours, or light movement.
-              </p>
-            </FadeIn>
-
-            {/* 规格展示 (静态 SPECS) */}
-            <FadeIn delay={500}>
-              <div className="grid grid-cols-2 gap-4 mb-10">
-                 <div className="border border-gray-200 rounded-xl p-4">
-                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Length</div>
-                    <div className="font-medium">{SPECS[0]}</div>
-                 </div>
-                 <div className="border border-gray-200 rounded-xl p-4">
-                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Quantity</div>
-                    <div className="font-medium">{SPECS[2]}</div>
-                 </div>
-              </div>
-            </FadeIn>
-
-            {/* 购买操作区 (Sticky) */}
-            <FadeIn delay={600}>
-              <div className="flex flex-col sm:flex-row gap-4 mb-12 sticky top-4 z-20 bg-white/90 backdrop-blur-sm py-4">
-                 <div className="flex items-center justify-between bg-[#f5f5f7] rounded-full px-4 h-14 sm:w-40">
-                    <button onClick={() => handleQuantity('dec')} className="text-xl px-2 hover:text-[#7c2b3d]">-</button>
-                    <span className="font-medium">{quantity}</span>
-                    <button onClick={() => handleQuantity('inc')} className="text-xl px-2 hover:text-[#7c2b3d]">+</button>
-                 </div>
-                 <Button 
-                   className="flex-1 h-14 text-lg shadow-xl shadow-[#7c2b3d]/20" 
-                   // 构造购物车对象 (使用 databaseId 作为唯一ID)
-                   onClick={() => onAddToCart({
-                       id: product.databaseId, 
-                       name: product.name,
-                       price: product.price, 
-                       image: product.image?.sourceUrl,
-                       quantity
-                   })}
-                   disabled={product.stockStatus === 'OUT_OF_STOCK'}
-                 >
-                   {product.stockStatus === 'OUT_OF_STOCK' 
-                      ? 'Out of Stock' 
-                      : `Add to Cart - $${totalPrice}`
-                   }
-                 </Button>
-              </div>
-            </FadeIn>
-
-            {/* === 详细卖点介绍 (保持不变) === */}
-            <div className="space-y-24 mt-20">
-               {/* ... (这里保留了你所有的 Feature 代码，完全不动) ... */}
-               
-               <FadeIn>
-                  <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
-                     <Leaf size={24} />
-                     <h3 className="text-sm font-bold uppercase tracking-widest">Nature's Embrace</h3>
-                  </div>
-                  <h4 className="text-3xl font-serif mb-4">Skincare for your intimate area.</h4>
-                  <p className="text-gray-600 leading-relaxed mb-6">
-                     Unlike synthetic alternatives, our top sheet is crafted from <strong>100% Natural Mulberry Silk</strong>. 
-                     Rich in 18 amino acids and natural proteins, it actively nourishes delicate skin, 
-                     maintaining a balanced pH of 5.7 to prevent irritation.
-                  </p>
-                  <ul className="space-y-3 text-sm text-gray-500">
-                     <li className="flex gap-3 items-center"><span className="w-1.5 h-1.5 rounded-full bg-[#7c2b3d]"></span> 99% Natural Antibacterial (Sericin)</li>
-                     <li className="flex gap-3 items-center"><span className="w-1.5 h-1.5 rounded-full bg-[#7c2b3d]"></span> Reduces itchiness and redness</li>
-                     <li className="flex gap-3 items-center"><span className="w-1.5 h-1.5 rounded-full bg-[#7c2b3d]"></span> Hypoallergenic & Dermatologist tested</li>
-                  </ul>
-               </FadeIn>
-
-               <FadeIn>
-                  <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
-                     <Wind size={24} />
-                     <h3 className="text-sm font-bold uppercase tracking-widest">Breathable Engineering</h3>
-                  </div>
-                  <h4 className="text-3xl font-serif mb-4">The Global Exclusive Patent.</h4>
-                  <p className="text-gray-600 leading-relaxed mb-6">
-                     We use a revolutionary <strong>Spunlace Technology</strong> (water-jet entanglement) instead of glues 
-                     to bond the silk layer. This creates a structure that is incredibly porous and breathable, 
-                     eliminating the "sauna effect" of traditional pads.
-                  </p>
-                  <div className="bg-[#f8f6f4] p-8 rounded-4xl mt-6">
-                     <div className="flex items-start gap-5">
-                        <div className="bg-white p-4 rounded-full text-[#7c2b3d] shadow-sm shrink-0">
-                           <Droplets size={24} />
-                        </div>
-                        <div>
-                           <div className="font-serif text-xl mb-2">50x Instant Absorption</div>
-                           <p className="text-sm text-gray-500 leading-relaxed">
-                              Our core locks fluid instantly—holding up to 50x its weight—keeping the surface 
-                              dry and pristine. No reverse osmosis, just confidence.
-                           </p>
-                        </div>
-                     </div>
-                  </div>
-               </FadeIn>
-
-               <FadeIn>
-                  <div className="flex items-center gap-3 mb-4 text-[#7c2b3d]">
-                     <ShieldCheck size={24} />
-                     <h3 className="text-sm font-bold uppercase tracking-widest">Medical-Grade Purity</h3>
-                  </div>
-                  <h4 className="text-3xl font-serif mb-4">Zero compromise on safety.</h4>
-                  <p className="text-gray-600 leading-relaxed mb-6">
-                     We believe period care should be as clean as the food you eat. AURORA pads are manufactured 
-                     in a medical-grade sterile environment.
-                  </p>
-                  <div className="grid grid-cols-2 gap-y-4 gap-x-8 mt-6">
-                     {['0 Fluorescent Agents', '0 Bleach', '0 Formaldehyde', '0 Plasticizers'].map(item => (
-                        <div key={item} className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                           <div className="w-1.5 h-1.5 rounded-full bg-[#7c2b3d]"></div>
-                           {item}
-                        </div>
-                     ))}
-                  </div>
-               </FadeIn>
-
             </div>
+          </Reveal>
+        </section>
+
+        {/* 3. FeatureSectionA / 核心卖点 A：触感与透气（大图段落） */}
+        <section id="section-a" className="py-16 md:py-24">
+          <Reveal>
+            <div className="space-y-6 max-w-[760px]">
+              <h3 className="text-2xl md:text-4xl font-semibold tracking-tight">
+                像肌肤一样呼吸
+              </h3>
+              <p className="text-base md:text-lg text-[#1d1d1f]/70 leading-relaxed">
+                {/* Placeholder：2-3 句体感解释 */}
+                柔软触感与轻盈透气并存，减少闷感，让每一次日常都更从容。
+              </p>
+            </div>
+          </Reveal>
+
+          <Reveal delayMs={120} className="mt-10 md:mt-14">
+            <div className="aspect-[16/9] rounded-2xl bg-black/5 overflow-hidden">
+              {/* Image Placeholder：材质微距/表层细节大图 */}
+              <div className="h-full w-full flex items-center justify-center text-sm text-[#1d1d1f]/50">
+                Image Placeholder（材质微距 / 表层细节）
+              </div>
+            </div>
+          </Reveal>
+        </section>
+
+        {/* 4. FeatureSectionB / 核心卖点 B：贴合与稳定（两栏） */}
+        <section className="py-16 md:py-24 border-t border-[#1d1d1f]/10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
+            <Reveal>
+              <div className="space-y-5">
+                <h3 className="text-2xl md:text-4xl font-semibold tracking-tight">
+                  贴合身形，步伐依旧轻盈
+                </h3>
+
+                <ul className="space-y-3 text-base md:text-lg text-[#1d1d1f]/70">
+                  {/* Placeholder：短 bullet，不超过 12 字 */}
+                  <li>• 稳定贴合不移位</li>
+                  <li>• 轻薄不束缚</li>
+                  <li>• 日常动作更自在</li>
+                </ul>
+
+                <p className="text-sm text-[#1d1d1f]/55">
+                  {/* Placeholder：小字补充 */}
+                  说明占位：结构/工艺带来的体验原因。
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delayMs={120}>
+              <div className="aspect-[4/3] rounded-2xl bg-black/5 overflow-hidden">
+                {/* Image Placeholder：结构示意/贴合概念图 */}
+                <div className="h-full w-full flex items-center justify-center text-sm text-[#1d1d1f]/50">
+                  Image Placeholder（结构示意 / 贴合概念图）
+                </div>
+              </div>
+            </Reveal>
           </div>
-        </div>
+        </section>
+
+        {/* 5. FeatureSectionC / 干爽与清爽感（大图 + 文本） */}
+        <section className="py-16 md:py-24">
+          <Reveal>
+            <div className="space-y-6 max-w-[760px]">
+              <h3 className="text-2xl md:text-4xl font-semibold tracking-tight">
+                干爽，不是吸收后的沉重
+              </h3>
+              <p className="text-base md:text-lg text-[#1d1d1f]/70 leading-relaxed">
+                {/* Placeholder：2-3 句 */}
+                日用体验的关键，是持续的清爽感与轻盈感，而不是“吸收后变厚”的存在感。
+              </p>
+            </div>
+          </Reveal>
+
+          <Reveal delayMs={120} className="mt-10 md:mt-14">
+            <div className="aspect-[16/9] rounded-2xl bg-black/5 overflow-hidden">
+              {/* Image Placeholder：抽象光影/概念图 */}
+              <div className="h-full w-full flex items-center justify-center text-sm text-[#1d1d1f]/50">
+                Image Placeholder（干爽概念图 / 高级光影）
+              </div>
+            </div>
+          </Reveal>
+        </section>
+
+        {/* 6. DesignDetails / 细节设计（纵向清单） */}
+        <section className="py-16 md:py-24 border-t border-[#1d1d1f]/10">
+          <Reveal>
+            <h3 className="text-2xl md:text-4xl font-semibold tracking-tight">
+              细节，决定体感
+            </h3>
+            <p className="mt-4 text-base md:text-lg text-[#1d1d1f]/70 max-w-[70ch] leading-relaxed">
+              {/* Placeholder */}
+              我们把关键体验拆成可感知的细节：边缘、表层、贴合与透气，每一处都更克制。
+            </p>
+          </Reveal>
+
+          <div className="mt-10 md:mt-14 space-y-10">
+            {/* Detail Item 1 */}
+            <Reveal>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div className="space-y-3">
+                  <h4 className="text-xl md:text-2xl font-semibold">
+                    细节标题 1（占位）
+                  </h4>
+                  <p className="text-base text-[#1d1d1f]/70 leading-relaxed">
+                    细节描述 1（占位）
+                  </p>
+                </div>
+                <div className="aspect-[4/3] rounded-2xl bg-black/5 overflow-hidden">
+                  <div className="h-full w-full flex items-center justify-center text-sm text-[#1d1d1f]/50">
+                    Detail Image 1 Placeholder
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+
+            {/* Detail Item 2 */}
+            <Reveal delayMs={60}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div className="space-y-3">
+                  <h4 className="text-xl md:text-2xl font-semibold">
+                    细节标题 2（占位）
+                  </h4>
+                  <p className="text-base text-[#1d1d1f]/70 leading-relaxed">
+                    细节描述 2（占位）
+                  </p>
+                </div>
+                <div className="aspect-[4/3] rounded-2xl bg-black/5 overflow-hidden">
+                  <div className="h-full w-full flex items-center justify-center text-sm text-[#1d1d1f]/50">
+                    Detail Image 2 Placeholder
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+
+            {/* Detail Item 3 */}
+            <Reveal delayMs={120}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div className="space-y-3">
+                  <h4 className="text-xl md:text-2xl font-semibold">
+                    细节标题 3（占位）
+                  </h4>
+                  <p className="text-base text-[#1d1d1f]/70 leading-relaxed">
+                    细节描述 3（占位）
+                  </p>
+                </div>
+                <div className="aspect-[4/3] rounded-2xl bg-black/5 overflow-hidden">
+                  <div className="h-full w-full flex items-center justify-center text-sm text-[#1d1d1f]/50">
+                    Detail Image 3 Placeholder
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* 7. HowItFitsYourDay / 场景化的一天（纵向三段） */}
+        <section className="py-16 md:py-24">
+          <Reveal>
+            <h3 className="text-2xl md:text-4xl font-semibold tracking-tight">
+              为日常节奏而生
+            </h3>
+          </Reveal>
+
+          <div className="mt-10 md:mt-14 space-y-10">
+            <Reveal>
+              <div className="space-y-2">
+                <h4 className="text-xl md:text-2xl font-semibold">场景 1（占位）</h4>
+                <p className="text-base text-[#1d1d1f]/70 leading-relaxed">
+                  体感一句话（占位）+ 功能解释一句话（占位）
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delayMs={60}>
+              <div className="space-y-2">
+                <h4 className="text-xl md:text-2xl font-semibold">场景 2（占位）</h4>
+                <p className="text-base text-[#1d1d1f]/70 leading-relaxed">
+                  体感一句话（占位）+ 功能解释一句话（占位）
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delayMs={120}>
+              <div className="space-y-2">
+                <h4 className="text-xl md:text-2xl font-semibold">场景 3（占位）</h4>
+                <p className="text-base text-[#1d1d1f]/70 leading-relaxed">
+                  体感一句话（占位）+ 功能解释一句话（占位）
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delayMs={180}>
+              <div className="aspect-[16/9] rounded-2xl bg-black/5 overflow-hidden">
+                {/* Image Placeholder：整体场景图 */}
+                <div className="h-full w-full flex items-center justify-center text-sm text-[#1d1d1f]/50">
+                  Scene Image Placeholder（整体场景图）
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* 8. QuickCompare / 静态对比表（不滑动、不卡片） */}
+        <section className="py-16 md:py-24 border-t border-[#1d1d1f]/10">
+          <Reveal>
+            <h3 className="text-2xl md:text-4xl font-semibold tracking-tight">
+              你适合 DayComfort 还是其他款？
+            </h3>
+            <p className="mt-4 text-base md:text-lg text-[#1d1d1f]/70 max-w-[70ch] leading-relaxed">
+              {/* Placeholder */}
+              对比占位：用最少的字，让用户一眼选对。
+            </p>
+          </Reveal>
+
+          <Reveal delayMs={120} className="mt-10 md:mt-14">
+            <div className="rounded-2xl border border-[#1d1d1f]/10 bg-white/40 overflow-hidden">
+              <div className="grid grid-cols-4 text-sm md:text-base">
+                <div className="p-5 font-semibold">DayComfort</div>
+                <div className="p-5 font-semibold">Night</div>
+                <div className="p-5 font-semibold">Overnight</div>
+                <div className="p-5 font-semibold">Liners</div>
+
+                <div className="p-5 text-[#1d1d1f]/70">轻薄 / 透气（占位）</div>
+                <div className="p-5 text-[#1d1d1f]/70">更长 / 夜用（占位）</div>
+                <div className="p-5 text-[#1d1d1f]/70">更强 / 量多（占位）</div>
+                <div className="p-5 text-[#1d1d1f]/70">更轻 / 日常（占位）</div>
+
+                <div className="p-5 text-[#1d1d1f]/70">通勤 / 工作（占位）</div>
+                <div className="p-5 text-[#1d1d1f]/70">夜晚安心（占位）</div>
+                <div className="p-5 text-[#1d1d1f]/70">整夜防护（占位）</div>
+                <div className="p-5 text-[#1d1d1f]/70">日常维护（占位）</div>
+              </div>
+            </div>
+          </Reveal>
+        </section>
+
+        {/* 9. SpecsAccordion / 规格折叠 */}
+        <section className="py-16 md:py-24">
+          <Reveal>
+            <h3 className="text-2xl md:text-4xl font-semibold tracking-tight">规格</h3>
+          </Reveal>
+
+          <div className="mt-8 space-y-3">
+            <Reveal>
+              <details className="rounded-2xl border border-[#1d1d1f]/10 bg-white/40 p-5">
+                <summary className="cursor-pointer font-semibold">尺寸 / 长度（占位）</summary>
+                <p className="mt-3 text-[#1d1d1f]/70">内容占位</p>
+              </details>
+            </Reveal>
+
+            <Reveal delayMs={60}>
+              <details className="rounded-2xl border border-[#1d1d1f]/10 bg-white/40 p-5">
+                <summary className="cursor-pointer font-semibold">吸收等级（占位）</summary>
+                <p className="mt-3 text-[#1d1d1f]/70">内容占位</p>
+              </details>
+            </Reveal>
+
+            <Reveal delayMs={120}>
+              <details className="rounded-2xl border border-[#1d1d1f]/10 bg-white/40 p-5">
+                <summary className="cursor-pointer font-semibold">材质结构（占位）</summary>
+                <p className="mt-3 text-[#1d1d1f]/70">内容占位</p>
+              </details>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* 10. TrustAssurance / 安心承诺 */}
+        <section className="py-16 md:py-24 border-t border-[#1d1d1f]/10">
+          <Reveal>
+            <h3 className="text-2xl md:text-4xl font-semibold tracking-tight">
+              安心使用的理由
+            </h3>
+          </Reveal>
+
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Reveal>
+              <div className="rounded-2xl bg-white/40 border border-[#1d1d1f]/10 p-6">
+                <div className="text-lg font-semibold">承诺 1（占位）</div>
+                <p className="mt-3 text-[#1d1d1f]/70">说明占位</p>
+              </div>
+            </Reveal>
+
+            <Reveal delayMs={60}>
+              <div className="rounded-2xl bg-white/40 border border-[#1d1d1f]/10 p-6">
+                <div className="text-lg font-semibold">承诺 2（占位）</div>
+                <p className="mt-3 text-[#1d1d1f]/70">说明占位</p>
+              </div>
+            </Reveal>
+
+            <Reveal delayMs={120}>
+              <div className="rounded-2xl bg-white/40 border border-[#1d1d1f]/10 p-6">
+                <div className="text-lg font-semibold">承诺 3（占位）</div>
+                <p className="mt-3 text-[#1d1d1f]/70">说明占位</p>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* 11. FinalPurchase / 底部购买召回（再次联动 Woo 产品页） */}
+        <section className="py-16 md:py-24">
+          <Reveal>
+            <div className="rounded-3xl border border-[#1d1d1f]/10 bg-white/50 p-8 md:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+              <div className="space-y-2">
+                <div className="text-2xl md:text-3xl font-semibold">DayComfort</div>
+                <div className="text-[#1d1d1f]/70">日用舒适与透气的理想平衡。</div>
+                <div className="text-sm text-[#1d1d1f]/55">
+                  {product?.price ? `价格：${product.price}` : "价格占位（从 Woo 拉取）"}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <a
+                  href={buyUrl}
+                  className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-medium
+                             bg-[#7c2b3d] text-white hover:opacity-90 transition"
+                >
+                  去购买
+                </a>
+
+                {/* 这个 /cart 取决于你的路由。如果你没有 cart 页面就先删掉 */}
+                <a
+                  href="/cart"
+                  className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-medium
+                             border border-[#1d1d1f]/20 hover:border-[#1d1d1f]/40 transition"
+                >
+                  查看购物车
+                </a>
+              </div>
+            </div>
+          </Reveal>
+        </section>
       </div>
     </div>
   );
-};
-
-export default DayComfort;
+}

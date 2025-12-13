@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import Button from '../../components/Button';
-import { PRODUCTS } from '../../data/products';
+import { getProducts } from '../../services/storeApi';
 
 // --- 动画辅助组件：FadeIn (与产品详情页逻辑一致) ---
 const FadeIn = ({ children, delay = 0, className = "" }) => {
@@ -43,16 +43,31 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
 const Collections = ({ onAddToCart }) => {
   const navigate = useNavigate();
 
-  // 根据产品 ID 返回正确的路由路径
-  const getProductLink = (id) => {
-    switch(id) {
-      case 1: return '/day_comfort';
-      case 2: return '/night_sanctuary';
-      case 3: return '/overnight_protection';
-      case 4: return '/daily_liners';
-      default: return '/products';
-    }
-  };
+  // 中文注释：从 WooCommerce（Woo Store API）动态拉取产品数据
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // 中文注释：用于展示简介时去掉 HTML 标签
+  const stripHtml = (html) => (html ? html.replace(/<[^>]*>?/gm, '') : '');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        // 中文注释：这里拉取 Woo 后台 products（可按需调整数量/排序）
+        const data = await getProducts({ per_page: 20, orderby: 'menu_order', order: 'asc' });
+        setProducts(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error(e);
+        setError(e?.message || 'Failed to load products.');
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   return (
     <div className="bg-[#f8f6f4] min-h-screen font-sans text-[#1d1d1f]">
@@ -76,69 +91,100 @@ const Collections = ({ onAddToCart }) => {
 
       {/* === Product Grid === */}
       <div className="max-w-[1400px] mx-auto px-6 pb-32">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-          
-          {PRODUCTS.map((product, index) => (
-            <FadeIn key={product.id} delay={index * 150} className="h-full">
-              <div 
-                className="group bg-white rounded-[2.5rem] p-8 md:p-12 shadow-[0_20px_40px_-10px_rgba(124,43,61,0.05)] hover:shadow-[0_30px_60px_-15px_rgba(124,43,61,0.1)] transition-all duration-500 border border-[#f0e8e4] flex flex-col md:flex-row items-center gap-8 md:gap-12 cursor-pointer h-full"
-                // 核心交互：点击卡片跳转
-                onClick={() => navigate(getProductLink(product.id))}
-              >
-                {/* 图片区域 */}
-                <div className="w-full md:w-1/2 aspect-4/5 bg-[#f9f9f9] rounded-4xl flex items-center justify-center relative overflow-hidden">
-                   <img 
-                     src={product.image} 
-                     alt={product.name} 
-                     className="w-3/4 h-3/4 object-contain mix-blend-multiply transform transition-transform duration-700 group-hover:scale-105"
-                   />
-                   {/* 悬停提示 */}
-                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/2 transition-colors duration-500 flex items-center justify-center">
-                      <span className="opacity-0 group-hover:opacity-100 bg-white px-6 py-3 rounded-full text-sm font-medium text-[#7c2b3d] shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
-                        View Details
-                      </span>
-                   </div>
+        {loading && (
+          <div className="flex justify-center py-20">
+            <Loader2 className="animate-spin text-[#7c2b3d]" size={42} />
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="text-center text-red-500 py-10">
+            {error}
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+            
+            {products.map((product, index) => (
+              <FadeIn key={product.id} delay={index * 150} className="h-full">
+                <div 
+                  className="group bg-white rounded-[2.5rem] p-8 md:p-12 shadow-[0_20px_40px_-10px_rgba(124,43,61,0.05)] hover:shadow-[0_30px_60px_-15px_rgba(124,43,61,0.1)] transition-all duration-500 border border-[#f0e8e4] flex flex-col md:flex-row items-center gap-8 md:gap-12 cursor-pointer h-full"
+                  // 核心交互：点击卡片跳转
+                  onClick={() => navigate(`/product/${product.id}`)}
+                >
+                  {/* 图片区域 */}
+                  <div className="w-full md:w-1/2 aspect-4/5 bg-[#f9f9f9] rounded-4xl flex items-center justify-center relative overflow-hidden">
+                     {(() => {
+                       const image = product?.images?.[0]?.src || 'https://placehold.co/900x1200/f8f6f4/7c2b3d?text=No+Image';
+                       return (
+                         <>
+                           <img 
+                             src={image} 
+                             alt={product.name} 
+                             className="w-3/4 h-3/4 object-contain mix-blend-multiply transform transition-transform duration-700 group-hover:scale-105"
+                           />
+                           {/* 悬停提示 */}
+                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/2 transition-colors duration-500 flex items-center justify-center">
+                              <span className="opacity-0 group-hover:opacity-100 bg-white px-6 py-3 rounded-full text-sm font-medium text-[#7c2b3d] shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                                View Details
+                              </span>
+                           </div>
+                         </>
+                       );
+                     })()}
+                  </div>
+
+                  {/* 信息区域 */}
+                  <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left h-full justify-center">
+                     <div className="mb-auto">
+                        <h2 className="text-3xl font-serif font-medium text-[#1d1d1f] mb-2 group-hover:text-[#7c2b3d] transition-colors">
+                          {product.name}
+                        </h2>
+                        {product?.categories?.[0]?.name && (
+                          <p className="text-[#9a8a85] text-sm tracking-wider uppercase font-medium mb-4">
+                            {product.categories[0].name}
+                          </p>
+                        )}
+                        <p className="text-gray-600 font-light leading-relaxed mb-6">
+                          {stripHtml(product?.short_description || product?.description)}
+                        </p>
+                        
+                        {Array.isArray(product?.tags) && product.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-8">
+                            {product.tags.slice(0, 6).map((t) => (
+                              <span
+                                key={t.id}
+                                className="px-3 py-1 bg-[#f8f6f4] text-[#5a5a5a] text-xs rounded-full border border-[#e5d5d0]"
+                              >
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                     </div>
+
+                     <div className="flex items-center gap-6 w-full mt-auto pt-6 border-t border-[#f0e8e4]">
+                        <span className="text-2xl font-serif text-[#1d1d1f]">
+                          {product?.prices?.price ? `$${(Number(product.prices.price) / 100).toFixed(2)}` : ''}
+                        </span>
+                        <Button 
+                          className="flex-1 shadow-lg shadow-[#7c2b3d]/10"
+                          onClick={(e) => {
+                            e.stopPropagation(); // 防止触发卡片点击
+                            navigate(`/product/${product.id}`);
+                          }}
+                        >
+                          Shop Now <ArrowRight size={16} className="ml-2" />
+                        </Button>
+                     </div>
+                  </div>
                 </div>
+              </FadeIn>
+            ))}
 
-                {/* 信息区域 */}
-                <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left h-full justify-center">
-                   <div className="mb-auto">
-                      <h2 className="text-3xl font-serif font-medium text-[#1d1d1f] mb-2 group-hover:text-[#7c2b3d] transition-colors">
-                        {product.name}
-                      </h2>
-                      <p className="text-[#9a8a85] text-sm tracking-wider uppercase font-medium mb-4">{product.tagline}</p>
-                      <p className="text-gray-600 font-light leading-relaxed mb-6">
-                        {product.description}
-                      </p>
-                      
-                      {/* 规格标签 */}
-                      <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-8">
-                        {product.specs.map((spec, i) => (
-                          <span key={i} className="px-3 py-1 bg-[#f8f6f4] text-[#5a5a5a] text-xs rounded-full border border-[#e5d5d0]">
-                            {spec}
-                          </span>
-                        ))}
-                      </div>
-                   </div>
-
-                   <div className="flex items-center gap-6 w-full mt-auto pt-6 border-t border-[#f0e8e4]">
-                      <span className="text-2xl font-serif text-[#1d1d1f]">${product.price}</span>
-                      <Button 
-                        className="flex-1 shadow-lg shadow-[#7c2b3d]/10"
-                        onClick={(e) => {
-                          e.stopPropagation(); // 防止触发卡片点击
-                          navigate(getProductLink(product.id));
-                        }}
-                      >
-                        Shop Now <ArrowRight size={16} className="ml-2" />
-                      </Button>
-                   </div>
-                </div>
-              </div>
-            </FadeIn>
-          ))}
-
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

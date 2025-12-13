@@ -41,48 +41,59 @@ const Login = () => {
     e.preventDefault();
     setError(null);
     setLoading(true);
-
+  
     try {
       // 中文注释：向 WordPress JWT 插件请求 token
-      // 常见端点：/wp-json/jwt-auth/v1/token
+      // 端点：/wp-json/jwt-auth/v1/token
+      // 注意：http.js 会自动 JSON.stringify 并设置 Content-Type
       const data = await http('/wp-json/jwt-auth/v1/token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        body: {
           username: email, // 中文注释：此字段在很多配置下可接受邮箱或用户名
           password,
-        }),
+        },
       });
-
+  
       // 中文注释：JWT 插件通常返回 token、user_email、user_display_name、user_nicename
       const token = data?.token;
       if (!token) {
         throw new Error(data?.message || 'Login failed: Invalid credentials');
       }
-
+  
       // 中文注释：保存 Token（用于后续读取订单/地址等受保护资源）
       localStorage.setItem('authToken', token);
-
+  
+      // ✅ 中文注释：登录后立刻用自定义端点拉取当前用户信息（不要用 wp/v2/users/me，它会 403）
+      // http.js 会自动注入 Authorization: Bearer <token>
+      const me = await http('/wp-json/estora/v1/me', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
       // 中文注释：保存用户信息（供 Profile 页面展示）
       const user = {
-        email: data?.user_email || email,
-        username: data?.user_nicename || data?.user_login || '',
-        firstName: '',
-        lastName: '',
-        displayName: data?.user_display_name || '',
+        id: me?.id || me?.databaseId || null,
+        email: me?.email || data?.user_email || email,
+        username: me?.username || data?.user_nicename || data?.user_login || '',
+        firstName: me?.firstName || me?.first_name || '',
+        lastName: me?.lastName || me?.last_name || '',
+        displayName: me?.displayName || me?.display_name || data?.user_display_name || '',
       };
       localStorage.setItem('user', JSON.stringify(user));
-
+  
       // 中文注释：登录成功后跳转到个人中心
       navigate('/profile');
     } catch (err) {
       console.error(err);
       // 中文注释：统一错误提示
-      const msg = err?.data?.message || err?.message || 'Failed to login. Please check your email and password.';
+      const msg =
+        err?.data?.message ||
+        err?.message ||
+        'Failed to login. Please check your email/username and password.';
       setError(msg);
-
+  
       // 中文注释：登录失败时清理可能残留的无效 token
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');

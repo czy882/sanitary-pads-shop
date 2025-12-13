@@ -21,8 +21,8 @@ const Navbar = () => {
   const productLinks = [
     { label: 'Day Comfort', path: '/day_comfort' },
     { label: 'Night Sanctuary', path: '/night_sanctuary' },
-    { label: 'Overnight Protection', path: '/overnight_protection' },
-    { label: 'Daily Liners', path: '/daily_liners' },
+    { label: 'Overnight', path: '/overnight' },
+    { label: 'Liners', path: '/liners' },
   ];
 
   const otherLinks = [

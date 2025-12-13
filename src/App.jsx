@@ -11,8 +11,8 @@ import WhySilk from "./pages/WhySilk";
 // 产品页面
 import DayComfort from "./pages/products/DayComfort";
 import NightSanctuary from "./pages/products/NightSanctuary";
-import OvernightProtection from "./pages/products/OvernightProtection";
-import DailyLiners from "./pages/products/DailyLiners";
+import Overnight from "./pages/products/Overnight";
+import Liners from "./pages/products/Liners";
 // 动态产品详情页（Woo Store API 联动）
 import ProductDetail from "./pages/products/ProductDetail";
 
@@ -66,8 +66,8 @@ function App() {
           {/* --- 单个产品页（内部用 useCart().addItem） --- */}
           <Route path="day_comfort" element={<DayComfort />} />
           <Route path="night_sanctuary" element={<NightSanctuary />} />
-          <Route path="overnight_protection" element={<OvernightProtection />} />
-          <Route path="daily_liners" element={<DailyLiners />} />
+          <Route path="overnight" element={<Overnight />} />
+          <Route path="liners" element={<Liners />} />
 
           {/* --- 购物车页（真实 Woo Cart） --- */}
           <Route path="cart" element={<Cart />} />
